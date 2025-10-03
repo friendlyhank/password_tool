@@ -71,61 +71,88 @@ func (a *App) showSetMasterPasswordDialog() {
 	
 	confirmEntry := widget.NewPasswordEntry()
 	confirmEntry.Resize(fyne.NewSize(300, 40))
+	
+	// 设置主密码处理函数
+	setPasswordFunc := func() {
+		password := passwordEntry.Text
+		confirm := confirmEntry.Text
 
-	// 创建带有更好间距的表单
-	form := &widget.Form{
-		Items: []*widget.FormItem{
-			{Text: "主密码:", Widget: passwordEntry},
-			{Text: "确认密码:", Widget: confirmEntry},
-		},
-		OnSubmit: func() {
-			password := passwordEntry.Text
-			confirm := confirmEntry.Text
+		if password == "" {
+			dialog.ShowError(fmt.Errorf("密码不能为空"), a.window)
+			return
+		}
 
-			if password == "" {
-				dialog.ShowError(fmt.Errorf("密码不能为空"), a.window)
-				return
-			}
+		if password != confirm {
+			dialog.ShowError(fmt.Errorf("两次输入的密码不一致"), a.window)
+			return
+		}
 
-			if password != confirm {
-				dialog.ShowError(fmt.Errorf("两次输入的密码不一致"), a.window)
-				return
-			}
+		if err := a.db.SetMasterPassword(password); err != nil {
+			dialog.ShowError(err, a.window)
+			return
+		}
 
-			if err := a.db.SetMasterPassword(password); err != nil {
-				dialog.ShowError(err, a.window)
-				return
-			}
+		// 设置主密钥
+		salt, err := a.db.GetMasterPasswordSalt()
+		if err != nil {
+			dialog.ShowError(err, a.window)
+			return
+		}
+		key := crypto.DeriveKey(password, salt)
+		a.db.SetMasterKey(key)
 
-			// 设置主密钥
-			salt, err := a.db.GetMasterPasswordSalt()
-			if err != nil {
-				dialog.ShowError(err, a.window)
-				return
-			}
-			key := crypto.DeriveKey(password, salt)
-			a.db.SetMasterKey(key)
-
-			a.showMainWindow()
-		},
+		a.showMainWindow()
 	}
 
-	// 添加内边距的容器
-	paddedContent := container.NewPadded(form)
+	// 添加回车键监听
+	passwordEntry.OnSubmitted = func(text string) {
+		confirmEntry.FocusGained()
+	}
 	
-	// 创建自定义对话框并设置尺寸
-	d := dialog.NewCustom("设置主密码", "确定", paddedContent, a.window)
-	d.Resize(fyne.NewSize(450, 250))
-	d.Show()
+	confirmEntry.OnSubmitted = func(text string) {
+		setPasswordFunc()
+	}
+
+	// 创建确定按钮
+	confirmButton := widget.NewButton("确定", func() {
+		setPasswordFunc()
+	})
+	confirmButton.Resize(fyne.NewSize(100, 35))
+
+	// 创建标签
+	passwordLabel := widget.NewLabel("主密码:")
+	confirmLabel := widget.NewLabel("确认密码:")
+	
+	// 添加适当的间距
+	spacer := widget.NewLabel("")
+	spacer.Resize(fyne.NewSize(1, 15))
+	
+	content := container.NewVBox(
+		spacer,
+		passwordLabel,
+		passwordEntry,
+		spacer,
+		confirmLabel,
+		confirmEntry,
+		spacer,
+		container.NewCenter(confirmButton),
+		spacer,
+	)
+	
+	// 添加内边距
+	paddedContent := container.NewPadded(content)
+	
+	// 设置主窗口标题和内容
+	a.window.SetTitle("设置主密码")
+	a.window.SetContent(paddedContent)
+	a.window.Resize(fyne.NewSize(450, 250))
+	a.window.CenterOnScreen()
 }
 
 // showLoginDialog 显示登录对话框
 func (a *App) showLoginDialog() {
 	passwordEntry := widget.NewPasswordEntry()
 	passwordEntry.Resize(fyne.NewSize(300, 40))
-
-	// 创建对话框变量
-	var d *dialog.CustomDialog
 	
 	// 登录处理函数
 	loginFunc := func() {
@@ -151,9 +178,6 @@ func (a *App) showLoginDialog() {
 		key := crypto.DeriveKey(password, salt)
 		a.db.SetMasterKey(key)
 
-		// 关闭登录对话框
-		d.Hide()
-		
 		a.showMainWindow()
 	}
 
@@ -184,9 +208,14 @@ func (a *App) showLoginDialog() {
 		spacer,
 	)
 	
-	d = dialog.NewCustom("输入主密码", "", content, a.window)
-	d.Resize(fyne.NewSize(380, 160))
-	d.Show()
+	// 添加内边距
+	paddedContent := container.NewPadded(content)
+	
+	// 设置主窗口标题和内容
+	a.window.SetTitle("输入主密码")
+	a.window.SetContent(paddedContent)
+	a.window.Resize(fyne.NewSize(380, 160))
+	a.window.CenterOnScreen()
 }
 
 // showMainWindow 显示主窗口
@@ -274,7 +303,11 @@ func (a *App) showMainWindow() {
 		container.NewPadded(a.entryList),
 	)
 
+	// 设置主窗口标题和内容
+	a.window.SetTitle("密码管理器")
 	a.window.SetContent(content)
+	a.window.Resize(fyne.NewSize(800, 600))
+	a.window.CenterOnScreen()
 }
 
 // loadEntries 加载密码条目
