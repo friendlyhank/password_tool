@@ -480,8 +480,8 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 		paddedContent, // 中心：表单内容
 	)
 
-	// 创建自定义对话框，不使用默认按钮
-	d := dialog.NewCustom(title, "", fullContent, a.window)
+	// 创建自定义对话框，使用 NewCustomWithoutButtons 避免底部默认按钮
+	d := dialog.NewCustomWithoutButtons(title, fullContent, a.window)
 	
 	// 设置关闭按钮和保存按钮的关闭对话框功能
 	closeButton.OnTapped = func() {
@@ -542,7 +542,24 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 		}
 	})
 
+	// 创建详情对话框
+	content := container.NewVBox(
+		widget.NewCard("", "", container.NewVBox(
+			container.NewHBox(widget.NewLabel("标题:"), titleLabel),
+			container.NewHBox(widget.NewLabel("用户名:"), usernameLabel),
+			container.NewHBox(widget.NewLabel("密码:"), passwordLabel, showPasswordBtn),
+			container.NewHBox(widget.NewLabel("网址:"), urlLabel),
+			container.NewHBox(widget.NewLabel("分类:"), categoryLabel),
+			container.NewHBox(widget.NewLabel("备注:"), notesLabel),
+		)),
+	)
+
+	// 创建详情对话框
+	detailsDialog := dialog.NewCustom("密码详情", "关闭", content, a.window)
+
+	// 创建编辑按钮，在编辑完成后关闭详情对话框
 	editBtn := widget.NewButton("编辑", func() {
+		detailsDialog.Hide() // 先关闭详情对话框
 		a.showEntryDialog(entry)
 	})
 
@@ -554,21 +571,13 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 					return
 				}
 				a.loadEntries()
+				detailsDialog.Hide() // 删除后关闭详情对话框
 			}
 		}, a.window)
 	})
 
-	content := container.NewVBox(
-		widget.NewCard("", "", container.NewVBox(
-			container.NewHBox(widget.NewLabel("标题:"), titleLabel),
-			container.NewHBox(widget.NewLabel("用户名:"), usernameLabel),
-			container.NewHBox(widget.NewLabel("密码:"), passwordLabel, showPasswordBtn),
-			container.NewHBox(widget.NewLabel("网址:"), urlLabel),
-			container.NewHBox(widget.NewLabel("分类:"), categoryLabel),
-			container.NewHBox(widget.NewLabel("备注:"), notesLabel),
-		)),
-		container.NewHBox(editBtn, deleteBtn),
-	)
+	// 添加按钮到内容中
+	content.Add(container.NewHBox(editBtn, deleteBtn))
 
-	dialog.ShowCustom("密码详情", "关闭", content, a.window)
+	detailsDialog.Show()
 }
