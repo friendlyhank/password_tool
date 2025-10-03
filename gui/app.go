@@ -125,7 +125,7 @@ func (a *App) showLoginDialog() {
 	passwordEntry.Resize(fyne.NewSize(300, 40))
 
 	// 创建对话框变量
-	var d *dialog.ConfirmDialog
+	var d *dialog.CustomDialog
 	
 	// 登录处理函数
 	loginFunc := func() {
@@ -162,23 +162,30 @@ func (a *App) showLoginDialog() {
 		loginFunc()
 	}
 
-	// 创建简单的标签和输入框布局，不使用Form
+	// 创建登录按钮
+	loginButton := widget.NewButton("登录", func() {
+		loginFunc()
+	})
+	loginButton.Resize(fyne.NewSize(100, 35))
+
+	// 创建简单的标签和输入框布局
 	label := widget.NewLabel("主密码:")
+	
+	// 添加适当的间距
+	spacer := widget.NewLabel("")
+	spacer.Resize(fyne.NewSize(1, 15))
+	
 	content := container.NewVBox(
+		spacer,
 		label,
 		passwordEntry,
+		spacer,
+		container.NewCenter(loginButton),
+		spacer,
 	)
-
-	// 添加内边距的容器
-	paddedContent := container.NewPadded(content)
 	
-	d = dialog.NewCustomConfirm("输入主密码", "登录", "取消", paddedContent, func(confirmed bool) {
-		if !confirmed {
-			return
-		}
-		loginFunc()
-	}, a.window)
-	d.Resize(fyne.NewSize(400, 200))
+	d = dialog.NewCustom("输入主密码", "", content, a.window)
+	d.Resize(fyne.NewSize(380, 160))
 	d.Show()
 }
 
