@@ -394,50 +394,26 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 		categoryEntry.SetText(entry.Category)
 	}
 
-	// 创建表单
-	form := &widget.Form{
-		Items: []*widget.FormItem{
-			{Text: "标题:", Widget: titleEntry},
-			{Text: "用户名:", Widget: usernameEntry},
-			{Text: "密码:", Widget: passwordEntry},
-			{Text: "网址:", Widget: urlEntry},
-			{Text: "分类:", Widget: categoryEntry},
-			{Text: "备注:", Widget: notesEntry},
-		},
-		OnSubmit: func() {
-			if titleEntry.Text == "" || passwordEntry.Text == "" {
-				dialog.ShowError(fmt.Errorf("标题和密码不能为空"), a.window)
-				return
-			}
+	// 创建标签，设置固定宽度以确保对齐
+	titleLabel := widget.NewLabel("标题:")
+	usernameLabel := widget.NewLabel("用户名:")
+	passwordLabel := widget.NewLabel("密码:")
+	urlLabel := widget.NewLabel("网址:")
+	categoryLabel := widget.NewLabel("分类:")
+	notesLabel := widget.NewLabel("备注:")
+	
+	// 使用网格布局创建表单，2列布局：标签列和输入框列
+	formContent := container.NewGridWithColumns(2,
+		titleLabel, titleEntry,
+		usernameLabel, usernameEntry,
+		passwordLabel, passwordEntry,
+		urlLabel, urlEntry,
+		categoryLabel, categoryEntry,
+		notesLabel, notesEntry,
+	)
 
-			newEntry := &models.PasswordEntry{
-				Title:    titleEntry.Text,
-				Username: usernameEntry.Text,
-				Password: passwordEntry.Text,
-				URL:      urlEntry.Text,
-				Notes:    notesEntry.Text,
-				Category: categoryEntry.Text,
-			}
-
-			var err error
-			if entry == nil {
-				err = a.db.AddPasswordEntry(newEntry)
-			} else {
-				newEntry.ID = entry.ID
-				err = a.db.UpdatePasswordEntry(newEntry)
-			}
-
-			if err != nil {
-				dialog.ShowError(err, a.window)
-				return
-			}
-
-			a.loadEntries()
-		},
-	}
-
-	// 添加内边距的容器
-	paddedContent := container.NewPadded(form)
+	// 添加垂直间距和内边距的容器，不使用Card组件避免额外按钮
+	paddedContent := container.NewPadded(formContent)
 
 	// 确定对话框标题
 	title := "添加密码"
@@ -445,9 +421,107 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 		title = "编辑密码"
 	}
 
-	// 创建自定义对话框并设置尺寸
-	d := dialog.NewCustom(title, "保存", paddedContent, a.window)
-	d.Resize(fyne.NewSize(500, 450))
+	// 创建关闭按钮
+	closeButton := widget.NewButton("关闭", func() {
+		// 关闭对话框的逻辑将在对话框创建后设置
+	})
+	
+	// 创建保存按钮
+	saveButton := widget.NewButton("保存", func() {
+		if titleEntry.Text == "" || passwordEntry.Text == "" {
+			dialog.ShowError(fmt.Errorf("标题和密码不能为空"), a.window)
+			return
+		}
+
+		newEntry := &models.PasswordEntry{
+			Title:    titleEntry.Text,
+			Username: usernameEntry.Text,
+			Password: passwordEntry.Text,
+			URL:      urlEntry.Text,
+			Notes:    notesEntry.Text,
+			Category: categoryEntry.Text,
+		}
+
+		var err error
+		if entry == nil {
+			err = a.db.AddPasswordEntry(newEntry)
+		} else {
+			newEntry.ID = entry.ID
+			err = a.db.UpdatePasswordEntry(newEntry)
+		}
+
+		if err != nil {
+			dialog.ShowError(err, a.window)
+			return
+		}
+
+		a.loadEntries()
+		// 关闭对话框的逻辑将在对话框创建后设置
+	})
+	
+	// 创建顶部容器，关闭按钮在最右边
+	topContainer := container.NewBorder(
+		nil, // 顶部
+		nil, // 底部
+		nil, // 左侧
+		closeButton, // 右侧：关闭按钮
+		widget.NewLabel(""), // 中心：空白占位
+	)
+	
+	// 创建底部容器，保存按钮居中
+	bottomContainer := container.NewCenter(saveButton)
+	
+	// 创建完整的内容容器
+	fullContent := container.NewBorder(
+		topContainer, // 顶部：关闭按钮在右边
+		bottomContainer, // 底部：保存按钮居中
+		nil, // 左侧
+		nil, // 右侧
+		paddedContent, // 中心：表单内容
+	)
+
+	// 创建自定义对话框，不使用默认按钮
+	d := dialog.NewCustom(title, "", fullContent, a.window)
+	
+	// 设置关闭按钮和保存按钮的关闭对话框功能
+	closeButton.OnTapped = func() {
+		d.Hide()
+	}
+	
+	// 更新保存按钮的关闭对话框功能
+	saveButton.OnTapped = func() {
+		if titleEntry.Text == "" || passwordEntry.Text == "" {
+			dialog.ShowError(fmt.Errorf("标题和密码不能为空"), a.window)
+			return
+		}
+
+		newEntry := &models.PasswordEntry{
+			Title:    titleEntry.Text,
+			Username: usernameEntry.Text,
+			Password: passwordEntry.Text,
+			URL:      urlEntry.Text,
+			Notes:    notesEntry.Text,
+			Category: categoryEntry.Text,
+		}
+
+		var err error
+		if entry == nil {
+			err = a.db.AddPasswordEntry(newEntry)
+		} else {
+			newEntry.ID = entry.ID
+			err = a.db.UpdatePasswordEntry(newEntry)
+		}
+
+		if err != nil {
+			dialog.ShowError(err, a.window)
+			return
+		}
+
+		a.loadEntries()
+		d.Hide()
+	}
+	
+	d.Resize(fyne.NewSize(500, 500))
 	d.Show()
 }
 
