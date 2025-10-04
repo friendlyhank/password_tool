@@ -222,25 +222,46 @@ func (a *App) showLoginDialog() {
 func (a *App) showMainWindow() {
 	a.loadEntries()
 
-	// 创建密码列表，增加列宽度
+	// 创建密码列表，增加列宽度和操作按钮
 	a.entryList = widget.NewList(
 		func() int {
 			return len(a.entries)
 		},
 		func() fyne.CanvasObject {
 			titleLabel := widget.NewLabel("标题")
-			titleLabel.Resize(fyne.NewSize(200, 30))
+			titleLabel.Resize(fyne.NewSize(180, 30))
 			
 			usernameLabel := widget.NewLabel("用户名")
-			usernameLabel.Resize(fyne.NewSize(150, 30))
+			usernameLabel.Resize(fyne.NewSize(130, 30))
 			
 			urlLabel := widget.NewLabel("网址")
-			urlLabel.Resize(fyne.NewSize(200, 30))
+			urlLabel.Resize(fyne.NewSize(180, 30))
 			
-			return container.NewHBox(
-				titleLabel,
-				usernameLabel,
-				urlLabel,
+			// 创建编辑按钮
+			editBtn := widget.NewButton("编辑", func() {
+				// 编辑功能将在更新时设置
+			})
+			editBtn.Resize(fyne.NewSize(60, 30))
+			
+			// 创建删除按钮
+			deleteBtn := widget.NewButton("删除", func() {
+				// 删除功能将在更新时设置
+			})
+			deleteBtn.Resize(fyne.NewSize(60, 30))
+			
+			// 创建按钮容器
+			buttonContainer := container.NewHBox(editBtn, deleteBtn)
+			
+			return container.NewBorder(
+				nil, // 顶部
+				nil, // 底部
+				nil, // 左侧
+				buttonContainer, // 右侧：操作按钮
+				container.NewHBox( // 中心：信息标签
+					titleLabel,
+					usernameLabel,
+					urlLabel,
+				),
 			)
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
@@ -248,10 +269,36 @@ func (a *App) showMainWindow() {
 				return
 			}
 			entry := a.entries[id]
-			hbox := obj.(*fyne.Container)
-			hbox.Objects[0].(*widget.Label).SetText(entry.Title)
-			hbox.Objects[1].(*widget.Label).SetText(entry.Username)
-			hbox.Objects[2].(*widget.Label).SetText(entry.URL)
+			borderContainer := obj.(*fyne.Container)
+			
+			// 获取中心的信息容器
+			infoContainer := borderContainer.Objects[0].(*fyne.Container)
+			infoContainer.Objects[0].(*widget.Label).SetText(entry.Title)
+			infoContainer.Objects[1].(*widget.Label).SetText(entry.Username)
+			infoContainer.Objects[2].(*widget.Label).SetText(entry.URL)
+			
+			// 获取右侧的按钮容器
+			buttonContainer := borderContainer.Objects[1].(*fyne.Container)
+			editBtn := buttonContainer.Objects[0].(*widget.Button)
+			deleteBtn := buttonContainer.Objects[1].(*widget.Button)
+			
+			// 设置编辑按钮功能
+			editBtn.OnTapped = func() {
+				a.showEntryDialog(entry)
+			}
+			
+			// 设置删除按钮功能
+			deleteBtn.OnTapped = func() {
+				a.showCustomConfirmDialog("确认删除", "确定要删除这个密码条目吗？", func(confirmed bool) {
+					if confirmed {
+						if err := a.db.DeletePasswordEntry(entry.ID); err != nil {
+							dialog.ShowError(err, a.window)
+							return
+						}
+						a.loadEntries()
+					}
+				})
+			}
 		},
 	)
 
@@ -268,16 +315,10 @@ func (a *App) showMainWindow() {
 		a.showAddEntryDialog()
 	})
 	addButton.Resize(fyne.NewSize(100, 35))
-	
-	refreshButton := widget.NewButton("刷新", func() {
-		a.loadEntries()
-	})
-	refreshButton.Resize(fyne.NewSize(80, 35))
 
 	// 创建工具栏容器
 	toolbar := container.NewHBox(
 		addButton,
-		refreshButton,
 	)
 
 	// 创建搜索框，增加高度
@@ -542,29 +583,68 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 		}
 	})
 
-	// 创建详情对话框
-	content := container.NewVBox(
-		widget.NewCard("", "", container.NewVBox(
-			container.NewHBox(widget.NewLabel("标题:"), titleLabel),
-			container.NewHBox(widget.NewLabel("用户名:"), usernameLabel),
-			container.NewHBox(widget.NewLabel("密码:"), passwordLabel, showPasswordBtn),
-			container.NewHBox(widget.NewLabel("网址:"), urlLabel),
-			container.NewHBox(widget.NewLabel("分类:"), categoryLabel),
-			container.NewHBox(widget.NewLabel("备注:"), notesLabel),
-		)),
+	// 创建关闭按钮
+	closeBtn := widget.NewButton("关闭", func() {
+		// 关闭功能将在对话框创建后设置
+	})
+
+	// 创建顶部容器，关闭按钮在右上角
+	topContainer := container.NewBorder(
+		nil, // 顶部
+		nil, // 底部
+		nil, // 左侧
+		closeBtn, // 右侧：关闭按钮
+		widget.NewLabel(""), // 中心：空白占位
 	)
 
-	// 创建详情对话框
-	detailsDialog := dialog.NewCustom("密码详情", "关闭", content, a.window)
+	// 创建详情内容
+	detailsContent := container.NewVBox(
+		container.NewHBox(widget.NewLabel("标题:"), titleLabel),
+		container.NewHBox(widget.NewLabel("用户名:"), usernameLabel),
+		container.NewHBox(widget.NewLabel("密码:"), passwordLabel, showPasswordBtn),
+		container.NewHBox(widget.NewLabel("网址:"), urlLabel),
+		container.NewHBox(widget.NewLabel("分类:"), categoryLabel),
+		container.NewHBox(widget.NewLabel("备注:"), notesLabel),
+	)
 
 	// 创建编辑按钮，在编辑完成后关闭详情对话框
 	editBtn := widget.NewButton("编辑", func() {
-		detailsDialog.Hide() // 先关闭详情对话框
-		a.showEntryDialog(entry)
+		// 编辑功能将在对话框创建后设置
 	})
 
 	deleteBtn := widget.NewButton("删除", func() {
-		dialog.ShowConfirm("确认删除", "确定要删除这个密码条目吗？", func(confirmed bool) {
+		// 删除功能将在对话框创建后设置
+	})
+
+	// 创建底部按钮容器
+	bottomContainer := container.NewHBox(editBtn, deleteBtn)
+
+	// 创建完整内容容器
+	content := container.NewBorder(
+		topContainer, // 顶部：关闭按钮在右边
+		bottomContainer, // 底部：编辑和删除按钮
+		nil, // 左侧
+		nil, // 右侧
+		container.NewPadded(widget.NewCard("", "", detailsContent)), // 中心：详情内容
+	)
+
+	// 创建详情对话框，不使用默认按钮
+	detailsDialog := dialog.NewCustomWithoutButtons("密码详情", content, a.window)
+
+	// 设置关闭按钮功能
+	closeBtn.OnTapped = func() {
+		detailsDialog.Hide()
+	}
+
+	// 设置编辑按钮功能
+	editBtn.OnTapped = func() {
+		detailsDialog.Hide() // 先关闭详情对话框
+		a.showEntryDialog(entry)
+	}
+
+	// 设置删除按钮功能
+	deleteBtn.OnTapped = func() {
+		a.showCustomConfirmDialog("确认删除", "确定要删除这个密码条目吗？", func(confirmed bool) {
 			if confirmed {
 				if err := a.db.DeletePasswordEntry(entry.ID); err != nil {
 					dialog.ShowError(err, a.window)
@@ -573,11 +653,59 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 				a.loadEntries()
 				detailsDialog.Hide() // 删除后关闭详情对话框
 			}
-		}, a.window)
-	})
-
-	// 添加按钮到内容中
-	content.Add(container.NewHBox(editBtn, deleteBtn))
+		})
+	}
 
 	detailsDialog.Show()
+}
+
+// showCustomConfirmDialog 显示自定义确认对话框，"是"在左边，"否"在右边
+func (a *App) showCustomConfirmDialog(title, message string, callback func(bool)) {
+	// 创建消息标签，居中对齐
+	messageLabel := widget.NewLabel(message)
+	messageLabel.Alignment = fyne.TextAlignCenter
+	
+	// 创建按钮，设置更大的尺寸
+	yesBtn := widget.NewButton("是", func() {
+		callback(true)
+	})
+	yesBtn.Resize(fyne.NewSize(80, 40))
+	
+	noBtn := widget.NewButton("否", func() {
+		callback(false)
+	})
+	noBtn.Resize(fyne.NewSize(80, 40))
+	
+	// 创建按钮容器，使用 HBox 并添加间距，然后居中
+	buttonContainer := container.NewHBox(
+		yesBtn,
+		widget.NewLabel("   "), // 添加间距
+		noBtn,
+	)
+	
+	// 创建内容容器，使用 VBox 并居中对齐
+	content := container.NewVBox(
+		widget.NewLabel(""), // 顶部间距
+		messageLabel,
+		widget.NewLabel(""), // 中间间距
+		container.NewCenter(buttonContainer), // 按钮容器居中
+		widget.NewLabel(""), // 底部间距
+	)
+	
+	// 创建对话框
+	confirmDialog := dialog.NewCustomWithoutButtons(title, content, a.window)
+	confirmDialog.Resize(fyne.NewSize(300, 150))
+	
+	// 设置按钮功能
+	yesBtn.OnTapped = func() {
+		confirmDialog.Hide()
+		callback(true)
+	}
+	
+	noBtn.OnTapped = func() {
+		confirmDialog.Hide()
+		callback(false)
+	}
+	
+	confirmDialog.Show()
 }
