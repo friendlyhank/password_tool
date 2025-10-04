@@ -233,19 +233,19 @@ func (a *App) showMainWindow() {
 			titleBtn := widget.NewButton("标题", func() {
 				// 点击功能将在更新时设置
 			})
-			titleBtn.Resize(fyne.NewSize(180, 30))
+			titleBtn.Resize(fyne.NewSize(150, 30)) // 减少标题宽度
 			titleBtn.Importance = widget.LowImportance // 设置为低重要性，减少按钮样式
 			
 			// 创建可点击的用户名按钮，设置为透明样式
 			usernameBtn := widget.NewButton("用户名", func() {
 				// 点击功能将在更新时设置
 			})
-			usernameBtn.Resize(fyne.NewSize(130, 30))
+			usernameBtn.Resize(fyne.NewSize(100, 30)) // 减少用户名宽度
 			usernameBtn.Importance = widget.LowImportance // 设置为低重要性，减少按钮样式
 			
-			// 创建URL容器，用于放置可点击的超链接
+			// 创建URL容器，使用无布局容器但设置合适的尺寸
 			urlContainer := container.NewWithoutLayout()
-			urlContainer.Resize(fyne.NewSize(180, 30))
+			urlContainer.Resize(fyne.NewSize(280, 30)) // 给URL更多空间
 			
 			// 创建编辑按钮
 			editBtn := widget.NewButton("编辑", func() {
@@ -268,16 +268,19 @@ func (a *App) showMainWindow() {
 			// 创建按钮容器
 			buttonContainer := container.NewHBox(editBtn, deleteBtn, copyBtn)
 			
+			// 使用更简单的布局结构，避免事件冲突
+			infoContainer := container.NewHBox(
+				titleBtn,
+				usernameBtn,
+				urlContainer,
+			)
+			
 			return container.NewBorder(
 				nil, // 顶部
 				nil, // 底部
 				nil, // 左侧
 				buttonContainer, // 右侧：操作按钮
-				container.NewHBox( // 中心：信息标签
-					titleBtn,
-					usernameBtn,
-					urlContainer,
-				),
+				infoContainer, // 中心：信息标签
 			)
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
@@ -291,6 +294,7 @@ func (a *App) showMainWindow() {
 			infoContainer := borderContainer.Objects[0].(*fyne.Container)
 			titleBtn := infoContainer.Objects[0].(*widget.Button)
 			usernameBtn := infoContainer.Objects[1].(*widget.Button)
+			urlContainer := infoContainer.Objects[2].(*fyne.Container)
 			
 			// 设置标题和用户名文本
 			titleBtn.SetText(entry.Title)
@@ -304,11 +308,20 @@ func (a *App) showMainWindow() {
 				a.showEntryDetails(entry)
 			}
 			
-			// 更新URL容器内容
-			urlContainer := infoContainer.Objects[2].(*fyne.Container)
+			// 更新URL容器内容，确保URL链接能正常工作
 			urlContainer.RemoveAll()
-			urlWidget := a.createURLWidget(entry.URL)
-			urlContainer.Add(urlWidget)
+			if entry.URL != "" {
+				urlWidget := a.createURLWidget(entry.URL)
+				// 对于无布局容器，需要手动设置位置和大小
+				urlWidget.Resize(fyne.NewSize(280, 30))
+				urlWidget.Move(fyne.NewPos(0, 0))
+				urlContainer.Add(urlWidget)
+			} else {
+				noUrlLabel := widget.NewLabel("无")
+				noUrlLabel.Resize(fyne.NewSize(280, 30))
+				noUrlLabel.Move(fyne.NewPos(0, 0))
+				urlContainer.Add(noUrlLabel)
+			}
 			
 			// 获取右侧的按钮容器
 			buttonContainer := borderContainer.Objects[1].(*fyne.Container)
@@ -619,10 +632,19 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 // showEntryDetails 显示条目详情
 func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 	titleLabel := widget.NewLabel(entry.Title)
+	titleLabel.Wrapping = fyne.TextWrapWord
+	
 	usernameLabel := widget.NewLabel(entry.Username)
+	usernameLabel.Wrapping = fyne.TextWrapWord
+	
 	passwordLabel := widget.NewLabel("••••••••")
+	passwordLabel.Wrapping = fyne.TextWrapWord
+	
 	categoryLabel := widget.NewLabel(entry.Category)
+	categoryLabel.Wrapping = fyne.TextWrapWord
+	
 	notesLabel := widget.NewLabel(entry.Notes)
+	notesLabel.Wrapping = fyne.TextWrapWord
 
 	showPasswordBtn := widget.NewButton("显示密码", func() {
 		if passwordLabel.Text == "••••••••" {
@@ -646,27 +668,52 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 		widget.NewLabel(""), // 中心：空白占位
 	)
 
-		// 创建详情内容
-		detailsContent := container.NewVBox(
-			container.NewHBox(widget.NewLabel("标题:"), titleLabel),
-			container.NewHBox(widget.NewLabel("用户名:"), usernameLabel),
-			container.NewHBox(widget.NewLabel("密码:"), passwordLabel, showPasswordBtn),
-			container.NewHBox(widget.NewLabel("网址:"), a.createURLWidget(entry.URL)),
-			container.NewHBox(widget.NewLabel("分类:"), categoryLabel),
-			container.NewHBox(widget.NewLabel("备注:"), notesLabel),
-		)
-
-	// 创建完整内容容器，只包含顶部关闭按钮和详情内容
-	content := container.NewBorder(
-		topContainer, // 顶部：关闭按钮在右边
-		nil, // 底部：移除编辑和删除按钮
-		nil, // 左侧
-		nil, // 右侧
-		container.NewPadded(widget.NewCard("", "", detailsContent)), // 中心：详情内容
+	// 创建URL容器，确保URL能正确显示
+	urlWidget := a.createURLWidget(entry.URL)
+	urlContainer := container.NewGridWithColumns(2,
+		widget.NewLabel("网址:"), urlWidget,
 	)
 
-	// 创建详情对话框，不使用默认按钮
+	// 创建详情内容，使用更好的布局
+	detailsContent := container.NewVBox(
+		widget.NewSeparator(),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("标题:"), titleLabel,
+		),
+		widget.NewSeparator(),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("用户名:"), usernameLabel,
+		),
+		widget.NewSeparator(),
+		container.NewBorder(
+			nil, nil, widget.NewLabel("密码:"), showPasswordBtn,
+			passwordLabel,
+		),
+		widget.NewSeparator(),
+		urlContainer,
+		widget.NewSeparator(),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("分类:"), categoryLabel,
+		),
+		widget.NewSeparator(),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("备注:"), notesLabel,
+		),
+		widget.NewSeparator(),
+	)
+
+	// 创建完整内容容器，移除滚动条
+	content := container.NewBorder(
+		topContainer, // 顶部：关闭按钮在右边
+		nil, // 底部
+		nil, // 左侧
+		nil, // 右侧
+		container.NewPadded(detailsContent), // 中心：添加内边距的详情内容
+	)
+
+	// 创建详情对话框，设置合适的大小
 	detailsDialog := dialog.NewCustomWithoutButtons("密码详情", content, a.window)
+	detailsDialog.Resize(fyne.NewSize(600, 450))
 
 	// 设置关闭按钮功能
 	closeBtn.OnTapped = func() {
@@ -685,13 +732,17 @@ func (a *App) createURLWidget(urlStr string) fyne.CanvasObject {
 	// 验证URL格式
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
-		// 如果不是有效的HTTP/HTTPS URL，显示为普通文本
-		return widget.NewLabel(urlStr)
+		// 如果不是有效的HTTP/HTTPS URL，显示为普通文本，不换行
+		label := widget.NewLabel(urlStr)
+		label.Wrapping = fyne.TextWrapOff // 关闭换行
+		return label
 	}
 	
 	// 创建可点击的超链接，确保URL能在浏览器中打开
 	hyperlink := widget.NewHyperlink(urlStr, parsedURL)
-	// 不设置OnTapped，让Fyne使用默认的浏览器打开行为
+	// 设置超链接样式，关闭换行，横向显示
+	hyperlink.Wrapping = fyne.TextWrapOff // 关闭换行
+	hyperlink.Truncation = fyne.TextTruncateOff // 关闭截断，显示完整URL
 	return hyperlink
 }
 
