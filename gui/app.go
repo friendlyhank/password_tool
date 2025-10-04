@@ -308,6 +308,8 @@ func (a *App) showMainWindow() {
 			return
 		}
 		a.showEntryDetails(a.entries[id])
+		// 显示详情后立即取消选中，确保下次点击同一项目时能再次触发
+		a.entryList.UnselectAll()
 	}
 
 	// 创建工具栏按钮
@@ -607,22 +609,10 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 		container.NewHBox(widget.NewLabel("备注:"), notesLabel),
 	)
 
-	// 创建编辑按钮，在编辑完成后关闭详情对话框
-	editBtn := widget.NewButton("编辑", func() {
-		// 编辑功能将在对话框创建后设置
-	})
-
-	deleteBtn := widget.NewButton("删除", func() {
-		// 删除功能将在对话框创建后设置
-	})
-
-	// 创建底部按钮容器
-	bottomContainer := container.NewHBox(editBtn, deleteBtn)
-
-	// 创建完整内容容器
+	// 创建完整内容容器，只包含顶部关闭按钮和详情内容
 	content := container.NewBorder(
 		topContainer, // 顶部：关闭按钮在右边
-		bottomContainer, // 底部：编辑和删除按钮
+		nil, // 底部：移除编辑和删除按钮
 		nil, // 左侧
 		nil, // 右侧
 		container.NewPadded(widget.NewCard("", "", detailsContent)), // 中心：详情内容
@@ -634,26 +624,6 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 	// 设置关闭按钮功能
 	closeBtn.OnTapped = func() {
 		detailsDialog.Hide()
-	}
-
-	// 设置编辑按钮功能
-	editBtn.OnTapped = func() {
-		detailsDialog.Hide() // 先关闭详情对话框
-		a.showEntryDialog(entry)
-	}
-
-	// 设置删除按钮功能
-	deleteBtn.OnTapped = func() {
-		a.showCustomConfirmDialog("确认删除", "确定要删除这个密码条目吗？", func(confirmed bool) {
-			if confirmed {
-				if err := a.db.DeletePasswordEntry(entry.ID); err != nil {
-					dialog.ShowError(err, a.window)
-					return
-				}
-				a.loadEntries()
-				detailsDialog.Hide() // 删除后关闭详情对话框
-			}
-		})
 	}
 
 	detailsDialog.Show()
