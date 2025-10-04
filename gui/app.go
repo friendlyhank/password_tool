@@ -2,6 +2,7 @@ package gui
 
 import (
 	"fmt"
+	"net/url"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -228,14 +229,23 @@ func (a *App) showMainWindow() {
 			return len(a.entries)
 		},
 		func() fyne.CanvasObject {
-			titleLabel := widget.NewLabel("标题")
-			titleLabel.Resize(fyne.NewSize(180, 30))
+			// 创建可点击的标题按钮，设置为透明样式
+			titleBtn := widget.NewButton("标题", func() {
+				// 点击功能将在更新时设置
+			})
+			titleBtn.Resize(fyne.NewSize(180, 30))
+			titleBtn.Importance = widget.LowImportance // 设置为低重要性，减少按钮样式
 			
-			usernameLabel := widget.NewLabel("用户名")
-			usernameLabel.Resize(fyne.NewSize(130, 30))
+			// 创建可点击的用户名按钮，设置为透明样式
+			usernameBtn := widget.NewButton("用户名", func() {
+				// 点击功能将在更新时设置
+			})
+			usernameBtn.Resize(fyne.NewSize(130, 30))
+			usernameBtn.Importance = widget.LowImportance // 设置为低重要性，减少按钮样式
 			
-			urlLabel := widget.NewLabel("网址")
-			urlLabel.Resize(fyne.NewSize(180, 30))
+			// 创建URL容器，用于放置可点击的超链接
+			urlContainer := container.NewWithoutLayout()
+			urlContainer.Resize(fyne.NewSize(180, 30))
 			
 			// 创建编辑按钮
 			editBtn := widget.NewButton("编辑", func() {
@@ -249,8 +259,14 @@ func (a *App) showMainWindow() {
 			})
 			deleteBtn.Resize(fyne.NewSize(60, 30))
 			
+			// 创建复制按钮
+			copyBtn := widget.NewButton("复制", func() {
+				// 复制功能将在更新时设置
+			})
+			copyBtn.Resize(fyne.NewSize(60, 30))
+			
 			// 创建按钮容器
-			buttonContainer := container.NewHBox(editBtn, deleteBtn)
+			buttonContainer := container.NewHBox(editBtn, deleteBtn, copyBtn)
 			
 			return container.NewBorder(
 				nil, // 顶部
@@ -258,9 +274,9 @@ func (a *App) showMainWindow() {
 				nil, // 左侧
 				buttonContainer, // 右侧：操作按钮
 				container.NewHBox( // 中心：信息标签
-					titleLabel,
-					usernameLabel,
-					urlLabel,
+					titleBtn,
+					usernameBtn,
+					urlContainer,
 				),
 			)
 		},
@@ -273,14 +289,32 @@ func (a *App) showMainWindow() {
 			
 			// 获取中心的信息容器
 			infoContainer := borderContainer.Objects[0].(*fyne.Container)
-			infoContainer.Objects[0].(*widget.Label).SetText(entry.Title)
-			infoContainer.Objects[1].(*widget.Label).SetText(entry.Username)
-			infoContainer.Objects[2].(*widget.Label).SetText(entry.URL)
+			titleBtn := infoContainer.Objects[0].(*widget.Button)
+			usernameBtn := infoContainer.Objects[1].(*widget.Button)
+			
+			// 设置标题和用户名文本
+			titleBtn.SetText(entry.Title)
+			usernameBtn.SetText(entry.Username)
+			
+			// 设置点击事件，点击标题或用户名都显示详情
+			titleBtn.OnTapped = func() {
+				a.showEntryDetails(entry)
+			}
+			usernameBtn.OnTapped = func() {
+				a.showEntryDetails(entry)
+			}
+			
+			// 更新URL容器内容
+			urlContainer := infoContainer.Objects[2].(*fyne.Container)
+			urlContainer.RemoveAll()
+			urlWidget := a.createURLWidget(entry.URL)
+			urlContainer.Add(urlWidget)
 			
 			// 获取右侧的按钮容器
 			buttonContainer := borderContainer.Objects[1].(*fyne.Container)
 			editBtn := buttonContainer.Objects[0].(*widget.Button)
 			deleteBtn := buttonContainer.Objects[1].(*widget.Button)
+			copyBtn := buttonContainer.Objects[2].(*widget.Button)
 			
 			// 设置编辑按钮功能
 			editBtn.OnTapped = func() {
@@ -299,18 +333,32 @@ func (a *App) showMainWindow() {
 					}
 				})
 			}
+			
+			// 设置复制按钮功能
+			copyBtn.OnTapped = func() {
+				// 格式化复制内容：账号和密码换行显示
+				// entry.Password 已经是解密后的明文密码，无需再次解密
+				copyContent := fmt.Sprintf("账号: %s\n密码: %s", entry.Username, entry.Password)
+				
+				// 复制到剪切板
+				a.window.Clipboard().SetContent(copyContent)
+				
+				// 显示复制成功提示
+				dialog.ShowInformation("复制成功", "账号和密码已复制到剪切板", a.window)
+			}
 		},
 	)
 
-	// 双击查看详情
-	a.entryList.OnSelected = func(id widget.ListItemID) {
-		if id >= len(a.entries) {
-			return
-		}
-		a.showEntryDetails(a.entries[id])
-		// 显示详情后立即取消选中，确保下次点击同一项目时能再次触发
-		a.entryList.UnselectAll()
-	}
+	// 移除双击查看详情的OnSelected事件，避免与URL点击冲突
+	// 现在只能通过点击标题或用户名来查看详情
+	// a.entryList.OnSelected = func(id widget.ListItemID) {
+	// 	if id >= len(a.entries) {
+	// 		return
+	// 	}
+	// 	a.showEntryDetails(a.entries[id])
+	// 	// 显示详情后立即取消选中，确保下次点击同一项目时能再次触发
+	// 	a.entryList.UnselectAll()
+	// }
 
 	// 创建工具栏按钮
 	addButton := widget.NewButton("添加密码", func() {
@@ -573,7 +621,6 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 	titleLabel := widget.NewLabel(entry.Title)
 	usernameLabel := widget.NewLabel(entry.Username)
 	passwordLabel := widget.NewLabel("••••••••")
-	urlLabel := widget.NewLabel(entry.URL)
 	categoryLabel := widget.NewLabel(entry.Category)
 	notesLabel := widget.NewLabel(entry.Notes)
 
@@ -599,15 +646,15 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 		widget.NewLabel(""), // 中心：空白占位
 	)
 
-	// 创建详情内容
-	detailsContent := container.NewVBox(
-		container.NewHBox(widget.NewLabel("标题:"), titleLabel),
-		container.NewHBox(widget.NewLabel("用户名:"), usernameLabel),
-		container.NewHBox(widget.NewLabel("密码:"), passwordLabel, showPasswordBtn),
-		container.NewHBox(widget.NewLabel("网址:"), urlLabel),
-		container.NewHBox(widget.NewLabel("分类:"), categoryLabel),
-		container.NewHBox(widget.NewLabel("备注:"), notesLabel),
-	)
+		// 创建详情内容
+		detailsContent := container.NewVBox(
+			container.NewHBox(widget.NewLabel("标题:"), titleLabel),
+			container.NewHBox(widget.NewLabel("用户名:"), usernameLabel),
+			container.NewHBox(widget.NewLabel("密码:"), passwordLabel, showPasswordBtn),
+			container.NewHBox(widget.NewLabel("网址:"), a.createURLWidget(entry.URL)),
+			container.NewHBox(widget.NewLabel("分类:"), categoryLabel),
+			container.NewHBox(widget.NewLabel("备注:"), notesLabel),
+		)
 
 	// 创建完整内容容器，只包含顶部关闭按钮和详情内容
 	content := container.NewBorder(
@@ -627,6 +674,25 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 	}
 
 	detailsDialog.Show()
+}
+
+// createURLWidget 创建可点击的URL组件
+func (a *App) createURLWidget(urlStr string) fyne.CanvasObject {
+	if urlStr == "" {
+		return widget.NewLabel("无")
+	}
+	
+	// 验证URL格式
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		// 如果不是有效的HTTP/HTTPS URL，显示为普通文本
+		return widget.NewLabel(urlStr)
+	}
+	
+	// 创建可点击的超链接，确保URL能在浏览器中打开
+	hyperlink := widget.NewHyperlink(urlStr, parsedURL)
+	// 不设置OnTapped，让Fyne使用默认的浏览器打开行为
+	return hyperlink
 }
 
 // showCustomConfirmDialog 显示自定义确认对话框，"是"在左边，"否"在右边

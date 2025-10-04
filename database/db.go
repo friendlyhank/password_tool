@@ -50,6 +50,11 @@ func (db *DB) SetMasterKey(key []byte) {
 	db.key = key
 }
 
+// GetKey 获取主密钥
+func (db *DB) GetKey() []byte {
+	return db.key
+}
+
 // createTables 创建数据库表
 func (db *DB) createTables() error {
 	queries := []string{
