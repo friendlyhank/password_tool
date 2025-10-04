@@ -3,6 +3,7 @@ package gui
 import (
 	"fmt"
 	"net/url"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -16,12 +17,16 @@ import (
 )
 
 type App struct {
-	fyneApp    fyne.App
-	window     fyne.Window
-	db         *database.DB
-	entryList  *widget.List
-	entries    []*models.PasswordEntry
-	categories []*models.Category
+	fyneApp      fyne.App
+	window       fyne.Window
+	db           *database.DB
+	entryList    *widget.List
+	entries      []*models.PasswordEntry
+	categories   []*models.Category
+	lockTimer    *time.Timer
+	isLocked     bool
+	lastActivity time.Time
+	openDialogs  []*dialog.CustomDialog // 跟踪打开的对话框
 }
 
 // NewApp 创建新的应用实例
@@ -34,8 +39,10 @@ func NewApp() *App {
 	window.CenterOnScreen()
 
 	return &App{
-		fyneApp: fyneApp,
-		window:  window,
+		fyneApp:      fyneApp,
+		window:       window,
+		isLocked:     true,
+		lastActivity: time.Now(),
 	}
 }
 
@@ -69,10 +76,10 @@ func (a *App) Run() {
 func (a *App) showSetMasterPasswordDialog() {
 	passwordEntry := widget.NewPasswordEntry()
 	passwordEntry.Resize(fyne.NewSize(300, 40))
-	
+
 	confirmEntry := widget.NewPasswordEntry()
 	confirmEntry.Resize(fyne.NewSize(300, 40))
-	
+
 	// 设置主密码处理函数
 	setPasswordFunc := func() {
 		password := passwordEntry.Text
@@ -109,7 +116,7 @@ func (a *App) showSetMasterPasswordDialog() {
 	passwordEntry.OnSubmitted = func(text string) {
 		confirmEntry.FocusGained()
 	}
-	
+
 	confirmEntry.OnSubmitted = func(text string) {
 		setPasswordFunc()
 	}
@@ -123,11 +130,11 @@ func (a *App) showSetMasterPasswordDialog() {
 	// 创建标签
 	passwordLabel := widget.NewLabel("主密码:")
 	confirmLabel := widget.NewLabel("确认密码:")
-	
+
 	// 添加适当的间距
 	spacer := widget.NewLabel("")
 	spacer.Resize(fyne.NewSize(1, 15))
-	
+
 	content := container.NewVBox(
 		spacer,
 		passwordLabel,
@@ -139,10 +146,10 @@ func (a *App) showSetMasterPasswordDialog() {
 		container.NewCenter(confirmButton),
 		spacer,
 	)
-	
+
 	// 添加内边距
 	paddedContent := container.NewPadded(content)
-	
+
 	// 设置主窗口标题和内容
 	a.window.SetTitle("设置主密码")
 	a.window.SetContent(paddedContent)
@@ -154,7 +161,7 @@ func (a *App) showSetMasterPasswordDialog() {
 func (a *App) showLoginDialog() {
 	passwordEntry := widget.NewPasswordEntry()
 	passwordEntry.Resize(fyne.NewSize(300, 40))
-	
+
 	// 登录处理函数
 	loginFunc := func() {
 		password := passwordEntry.Text
@@ -195,11 +202,11 @@ func (a *App) showLoginDialog() {
 
 	// 创建简单的标签和输入框布局
 	label := widget.NewLabel("主密码:")
-	
+
 	// 添加适当的间距
 	spacer := widget.NewLabel("")
 	spacer.Resize(fyne.NewSize(1, 15))
-	
+
 	content := container.NewVBox(
 		spacer,
 		label,
@@ -208,10 +215,10 @@ func (a *App) showLoginDialog() {
 		container.NewCenter(loginButton),
 		spacer,
 	)
-	
+
 	// 添加内边距
 	paddedContent := container.NewPadded(content)
-	
+
 	// 设置主窗口标题和内容
 	a.window.SetTitle("输入主密码")
 	a.window.SetContent(paddedContent)
@@ -221,6 +228,8 @@ func (a *App) showLoginDialog() {
 
 // showMainWindow 显示主窗口
 func (a *App) showMainWindow() {
+	a.isLocked = false
+	a.startAutoLockTimer()
 	a.loadEntries()
 
 	// 创建密码列表，增加列宽度和操作按钮
@@ -233,54 +242,54 @@ func (a *App) showMainWindow() {
 			titleBtn := widget.NewButton("标题", func() {
 				// 点击功能将在更新时设置
 			})
-			titleBtn.Resize(fyne.NewSize(150, 30)) // 减少标题宽度
+			titleBtn.Resize(fyne.NewSize(150, 30))     // 减少标题宽度
 			titleBtn.Importance = widget.LowImportance // 设置为低重要性，减少按钮样式
-			
+
 			// 创建可点击的用户名按钮，设置为透明样式
 			usernameBtn := widget.NewButton("用户名", func() {
 				// 点击功能将在更新时设置
 			})
-			usernameBtn.Resize(fyne.NewSize(100, 30)) // 减少用户名宽度
+			usernameBtn.Resize(fyne.NewSize(100, 30))     // 减少用户名宽度
 			usernameBtn.Importance = widget.LowImportance // 设置为低重要性，减少按钮样式
-			
+
 			// 创建URL容器，使用无布局容器但设置合适的尺寸
 			urlContainer := container.NewWithoutLayout()
 			urlContainer.Resize(fyne.NewSize(280, 30)) // 给URL更多空间
-			
+
 			// 创建编辑按钮
 			editBtn := widget.NewButton("编辑", func() {
 				// 编辑功能将在更新时设置
 			})
 			editBtn.Resize(fyne.NewSize(60, 30))
-			
+
 			// 创建删除按钮
 			deleteBtn := widget.NewButton("删除", func() {
 				// 删除功能将在更新时设置
 			})
 			deleteBtn.Resize(fyne.NewSize(60, 30))
-			
+
 			// 创建复制按钮
 			copyBtn := widget.NewButton("复制", func() {
 				// 复制功能将在更新时设置
 			})
 			copyBtn.Resize(fyne.NewSize(60, 30))
-			
+
 			// 创建按钮容器
-			buttonContainer := container.NewHBox(editBtn, deleteBtn, copyBtn)
-			
+			buttonContainer := container.NewHBox(copyBtn, editBtn, deleteBtn)
+
 			// 使用更简单的布局结构，避免事件冲突
 			infoContainer := container.NewHBox(
 				titleBtn,
 				usernameBtn,
 				urlContainer,
 			)
-			
+
 			return container.NewBorder(
-				nil, // 顶部
-				nil, // 底部
-				nil, // 左侧
+				nil,             // 顶部
+				nil,             // 底部
+				nil,             // 左侧
 				buttonContainer, // 右侧：操作按钮
-				infoContainer, // 中心：信息标签
+				infoContainer,   // 中心：信息标签
 			)
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
@@ -289,17 +298,17 @@ func (a *App) showMainWindow() {
 			}
 			entry := a.entries[id]
 			borderContainer := obj.(*fyne.Container)
-			
+
 			// 获取中心的信息容器
 			infoContainer := borderContainer.Objects[0].(*fyne.Container)
 			titleBtn := infoContainer.Objects[0].(*widget.Button)
 			usernameBtn := infoContainer.Objects[1].(*widget.Button)
 			urlContainer := infoContainer.Objects[2].(*fyne.Container)
-			
+
 			// 设置标题和用户名文本
 			titleBtn.SetText(entry.Title)
 			usernameBtn.SetText(entry.Username)
-			
+
 			// 设置点击事件，点击标题或用户名都显示详情
 			titleBtn.OnTapped = func() {
 				a.showEntryDetails(entry)
@@ -307,7 +316,7 @@ func (a *App) showMainWindow() {
 			usernameBtn.OnTapped = func() {
 				a.showEntryDetails(entry)
 			}
-			
+
 			// 更新URL容器内容，确保URL链接能正常工作
 			urlContainer.RemoveAll()
 			if entry.URL != "" {
@@ -322,18 +331,18 @@ func (a *App) showMainWindow() {
 				noUrlLabel.Move(fyne.NewPos(0, 0))
 				urlContainer.Add(noUrlLabel)
 			}
-			
+
 			// 获取右侧的按钮容器
 			buttonContainer := borderContainer.Objects[1].(*fyne.Container)
 			editBtn := buttonContainer.Objects[0].(*widget.Button)
 			deleteBtn := buttonContainer.Objects[1].(*widget.Button)
 			copyBtn := buttonContainer.Objects[2].(*widget.Button)
-			
+
 			// 设置编辑按钮功能
 			editBtn.OnTapped = func() {
 				a.showEntryDialog(entry)
 			}
-			
+
 			// 设置删除按钮功能
 			deleteBtn.OnTapped = func() {
 				a.showCustomConfirmDialog("确认删除", "确定要删除这个密码条目吗？", func(confirmed bool) {
@@ -346,16 +355,16 @@ func (a *App) showMainWindow() {
 					}
 				})
 			}
-			
+
 			// 设置复制按钮功能
 			copyBtn.OnTapped = func() {
 				// 格式化复制内容：账号和密码换行显示
 				// entry.Password 已经是解密后的明文密码，无需再次解密
 				copyContent := fmt.Sprintf("账号: %s\n密码: %s", entry.Username, entry.Password)
-				
+
 				// 复制到剪切板
 				a.window.Clipboard().SetContent(copyContent)
-				
+
 				// 显示复制成功提示
 				dialog.ShowInformation("复制成功", "账号和密码已复制到剪切板", a.window)
 			}
@@ -412,6 +421,103 @@ func (a *App) showMainWindow() {
 	a.window.SetContent(content)
 	a.window.Resize(fyne.NewSize(800, 600))
 	a.window.CenterOnScreen()
+
+	// 添加窗口事件监听，用于检测用户活动
+	a.setupActivityListeners(content)
+}
+
+// startAutoLockTimer 启动自动锁定定时器
+func (a *App) startAutoLockTimer() {
+	if a.lockTimer != nil {
+		a.lockTimer.Stop()
+	}
+
+	a.lockTimer = time.AfterFunc(5*time.Minute, func() {
+		if !a.isLocked {
+			a.lockApplication()
+		}
+	})
+}
+
+// resetAutoLockTimer 重置自动锁定定时器
+func (a *App) resetAutoLockTimer() {
+	if a.isLocked {
+		return
+	}
+
+	a.lastActivity = time.Now()
+	a.startAutoLockTimer()
+}
+
+// lockApplication 锁定应用程序
+func (a *App) lockApplication() {
+	a.isLocked = true
+	if a.lockTimer != nil {
+		a.lockTimer.Stop()
+		a.lockTimer = nil
+	}
+
+	// 关闭所有打开的对话框
+	for _, d := range a.openDialogs {
+		if d != nil {
+			d.Hide()
+		}
+	}
+	a.openDialogs = nil
+
+	// 清除主密钥
+	if a.db != nil {
+		a.db.SetMasterKey(nil)
+	}
+
+	// 返回到登录界面
+	a.showLoginDialog()
+}
+
+// setupActivityListeners 设置用户活动监听器
+func (a *App) setupActivityListeners(content *fyne.Container) {
+	// 为窗口添加鼠标和键盘事件监听
+	a.window.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
+		a.resetAutoLockTimer()
+	})
+
+	// 递归为所有可交互组件添加活动监听
+	a.addActivityListenersToContainer(content)
+}
+
+// addActivityListenersToContainer 递归为容器中的组件添加活动监听器
+func (a *App) addActivityListenersToContainer(container *fyne.Container) {
+	for _, obj := range container.Objects {
+		switch widget := obj.(type) {
+		case *widget.Button:
+			originalTapped := widget.OnTapped
+			widget.OnTapped = func() {
+				a.resetAutoLockTimer()
+				if originalTapped != nil {
+					originalTapped()
+				}
+			}
+		case *widget.Entry:
+			originalChanged := widget.OnChanged
+			widget.OnChanged = func(text string) {
+				a.resetAutoLockTimer()
+				if originalChanged != nil {
+					originalChanged(text)
+				}
+			}
+		case *widget.List:
+			originalSelected := widget.OnSelected
+			widget.OnSelected = func(id int) {
+				a.resetAutoLockTimer()
+				if originalSelected != nil {
+					originalSelected(id)
+				}
+			}
+		case *fyne.Container:
+			// 递归处理嵌套容器
+			a.addActivityListenersToContainer(widget)
+		}
+	}
 }
 
 // loadEntries 加载密码条目
@@ -456,10 +562,10 @@ func (a *App) filterEntries(searchText string) {
 
 // contains 检查字符串是否包含子字符串（忽略大小写）
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && 
-		   (s == substr || 
-		    len(substr) == 0 || 
-		    (len(s) > 0 && len(substr) > 0 && s[0] == substr[0]))
+	return len(s) >= len(substr) &&
+		(s == substr ||
+			len(substr) == 0 ||
+			(len(s) > 0 && len(substr) > 0 && s[0] == substr[0]))
 }
 
 // showAddEntryDialog 显示添加条目对话框
@@ -472,19 +578,19 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 	// 创建输入框并设置尺寸
 	titleEntry := widget.NewEntry()
 	titleEntry.Resize(fyne.NewSize(350, 35))
-	
+
 	usernameEntry := widget.NewEntry()
 	usernameEntry.Resize(fyne.NewSize(350, 35))
-	
+
 	passwordEntry := widget.NewPasswordEntry()
 	passwordEntry.Resize(fyne.NewSize(350, 35))
-	
+
 	urlEntry := widget.NewEntry()
 	urlEntry.Resize(fyne.NewSize(350, 35))
-	
+
 	categoryEntry := widget.NewEntry()
 	categoryEntry.Resize(fyne.NewSize(350, 35))
-	
+
 	notesEntry := widget.NewMultiLineEntry()
 	notesEntry.Resize(fyne.NewSize(350, 80))
 
@@ -505,7 +611,7 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 	urlLabel := widget.NewLabel("网址:")
 	categoryLabel := widget.NewLabel("分类:")
 	notesLabel := widget.NewLabel("备注:")
-	
+
 	// 使用网格布局创建表单，2列布局：标签列和输入框列
 	formContent := container.NewGridWithColumns(2,
 		titleLabel, titleEntry,
@@ -529,7 +635,7 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 	closeButton := widget.NewButton("关闭", func() {
 		// 关闭对话框的逻辑将在对话框创建后设置
 	})
-	
+
 	// 创建保存按钮
 	saveButton := widget.NewButton("保存", func() {
 		if titleEntry.Text == "" || passwordEntry.Text == "" {
@@ -562,36 +668,40 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 		a.loadEntries()
 		// 关闭对话框的逻辑将在对话框创建后设置
 	})
-	
+
 	// 创建顶部容器，关闭按钮在最右边
 	topContainer := container.NewBorder(
-		nil, // 顶部
-		nil, // 底部
-		nil, // 左侧
-		closeButton, // 右侧：关闭按钮
+		nil,                 // 顶部
+		nil,                 // 底部
+		nil,                 // 左侧
+		closeButton,         // 右侧：关闭按钮
 		widget.NewLabel(""), // 中心：空白占位
 	)
-	
+
 	// 创建底部容器，保存按钮居中
 	bottomContainer := container.NewCenter(saveButton)
-	
+
 	// 创建完整的内容容器
 	fullContent := container.NewBorder(
-		topContainer, // 顶部：关闭按钮在右边
+		topContainer,    // 顶部：关闭按钮在右边
 		bottomContainer, // 底部：保存按钮居中
-		nil, // 左侧
-		nil, // 右侧
-		paddedContent, // 中心：表单内容
+		nil,             // 左侧
+		nil,             // 右侧
+		paddedContent,   // 中心：表单内容
 	)
 
 	// 创建自定义对话框，使用 NewCustomWithoutButtons 避免底部默认按钮
 	d := dialog.NewCustomWithoutButtons(title, fullContent, a.window)
-	
+
+	// 将对话框添加到跟踪列表
+	a.openDialogs = append(a.openDialogs, d)
+
 	// 设置关闭按钮和保存按钮的关闭对话框功能
 	closeButton.OnTapped = func() {
+		a.removeDialog(d)
 		d.Hide()
 	}
-	
+
 	// 更新保存按钮的关闭对话框功能
 	saveButton.OnTapped = func() {
 		if titleEntry.Text == "" || passwordEntry.Text == "" {
@@ -622,27 +732,38 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 		}
 
 		a.loadEntries()
+		a.removeDialog(d)
 		d.Hide()
 	}
-	
+
 	d.Resize(fyne.NewSize(500, 500))
 	d.Show()
+}
+
+// removeDialog 从跟踪列表中移除对话框
+func (a *App) removeDialog(target *dialog.CustomDialog) {
+	for i, d := range a.openDialogs {
+		if d == target {
+			a.openDialogs = append(a.openDialogs[:i], a.openDialogs[i+1:]...)
+			break
+		}
+	}
 }
 
 // showEntryDetails 显示条目详情
 func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 	titleLabel := widget.NewLabel(entry.Title)
 	titleLabel.Wrapping = fyne.TextWrapWord
-	
+
 	usernameLabel := widget.NewLabel(entry.Username)
 	usernameLabel.Wrapping = fyne.TextWrapWord
-	
+
 	passwordLabel := widget.NewLabel("••••••••")
 	passwordLabel.Wrapping = fyne.TextWrapWord
-	
+
 	categoryLabel := widget.NewLabel(entry.Category)
 	categoryLabel.Wrapping = fyne.TextWrapWord
-	
+
 	notesLabel := widget.NewLabel(entry.Notes)
 	notesLabel.Wrapping = fyne.TextWrapWord
 
@@ -661,10 +782,10 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 
 	// 创建顶部容器，关闭按钮在右上角
 	topContainer := container.NewBorder(
-		nil, // 顶部
-		nil, // 底部
-		nil, // 左侧
-		closeBtn, // 右侧：关闭按钮
+		nil,                 // 顶部
+		nil,                 // 底部
+		nil,                 // 左侧
+		closeBtn,            // 右侧：关闭按钮
 		widget.NewLabel(""), // 中心：空白占位
 	)
 
@@ -704,10 +825,10 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 
 	// 创建完整内容容器，移除滚动条
 	content := container.NewBorder(
-		topContainer, // 顶部：关闭按钮在右边
-		nil, // 底部
-		nil, // 左侧
-		nil, // 右侧
+		topContainer,                        // 顶部：关闭按钮在右边
+		nil,                                 // 底部
+		nil,                                 // 左侧
+		nil,                                 // 右侧
 		container.NewPadded(detailsContent), // 中心：添加内边距的详情内容
 	)
 
@@ -715,8 +836,12 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 	detailsDialog := dialog.NewCustomWithoutButtons("密码详情", content, a.window)
 	detailsDialog.Resize(fyne.NewSize(600, 450))
 
+	// 将对话框添加到跟踪列表
+	a.openDialogs = append(a.openDialogs, detailsDialog)
+
 	// 设置关闭按钮功能
 	closeBtn.OnTapped = func() {
+		a.removeDialog(detailsDialog)
 		detailsDialog.Hide()
 	}
 
@@ -728,7 +853,7 @@ func (a *App) createURLWidget(urlStr string) fyne.CanvasObject {
 	if urlStr == "" {
 		return widget.NewLabel("无")
 	}
-	
+
 	// 验证URL格式
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
@@ -737,11 +862,11 @@ func (a *App) createURLWidget(urlStr string) fyne.CanvasObject {
 		label.Wrapping = fyne.TextWrapOff // 关闭换行
 		return label
 	}
-	
+
 	// 创建可点击的超链接，确保URL能在浏览器中打开
 	hyperlink := widget.NewHyperlink(urlStr, parsedURL)
 	// 设置超链接样式，关闭换行，横向显示
-	hyperlink.Wrapping = fyne.TextWrapOff // 关闭换行
+	hyperlink.Wrapping = fyne.TextWrapOff       // 关闭换行
 	hyperlink.Truncation = fyne.TextTruncateOff // 关闭截断，显示完整URL
 	return hyperlink
 }
@@ -751,48 +876,53 @@ func (a *App) showCustomConfirmDialog(title, message string, callback func(bool)
 	// 创建消息标签，居中对齐
 	messageLabel := widget.NewLabel(message)
 	messageLabel.Alignment = fyne.TextAlignCenter
-	
+
 	// 创建按钮，设置更大的尺寸
 	yesBtn := widget.NewButton("是", func() {
 		callback(true)
 	})
 	yesBtn.Resize(fyne.NewSize(80, 40))
-	
+
 	noBtn := widget.NewButton("否", func() {
 		callback(false)
 	})
 	noBtn.Resize(fyne.NewSize(80, 40))
-	
+
 	// 创建按钮容器，使用 HBox 并添加间距，然后居中
 	buttonContainer := container.NewHBox(
 		yesBtn,
 		widget.NewLabel("   "), // 添加间距
 		noBtn,
 	)
-	
+
 	// 创建内容容器，使用 VBox 并居中对齐
 	content := container.NewVBox(
 		widget.NewLabel(""), // 顶部间距
 		messageLabel,
-		widget.NewLabel(""), // 中间间距
+		widget.NewLabel(""),                  // 中间间距
 		container.NewCenter(buttonContainer), // 按钮容器居中
-		widget.NewLabel(""), // 底部间距
+		widget.NewLabel(""),                  // 底部间距
 	)
-	
+
 	// 创建对话框
 	confirmDialog := dialog.NewCustomWithoutButtons(title, content, a.window)
 	confirmDialog.Resize(fyne.NewSize(300, 150))
-	
+
+	// 将对话框添加到跟踪列表
+	a.openDialogs = append(a.openDialogs, confirmDialog)
+
 	// 设置按钮功能
 	yesBtn.OnTapped = func() {
+		a.removeDialog(confirmDialog)
 		confirmDialog.Hide()
 		callback(true)
 	}
-	
+
 	noBtn.OnTapped = func() {
+		a.removeDialog(confirmDialog)
 		confirmDialog.Hide()
 		callback(false)
 	}
-	
+
 	confirmDialog.Show()
 }
