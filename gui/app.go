@@ -32,7 +32,12 @@ type App struct {
 // NewApp 创建新的应用实例
 func NewApp() *App {
 	fyneApp := app.New()
-	fyneApp.SetIcon(nil) // 可以设置应用图标
+	
+	// 设置应用图标
+	iconResource, err := fyne.LoadResourceFromPath("icon.svg")
+	if err == nil {
+		fyneApp.SetIcon(iconResource)
+	}
 
 	window := fyneApp.NewWindow("密码管理器")
 	window.Resize(fyne.NewSize(1000, 700)) // 增加窗口尺寸，提供更好的用户体验

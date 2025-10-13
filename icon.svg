@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- 白色背景 -->
+  <rect x="0" y="0" width="512" height="512" rx="100" ry="100" 
+        fill="#ffffff" 
+        stroke="#e0e0e0" 
+        stroke-width="4"/>
+  
+  <!-- 数据库图标 (绿色) -->
+  <g transform="translate(60, 300)">
+    <!-- 第一层 -->
+    <ellipse cx="196" cy="30" rx="180" ry="30" 
+             fill="#4CAF50" 
+             stroke="#2E7D32" 
+             stroke-width="4"/>
+    <rect x="16" y="30" width="360" height="60" fill="#4CAF50"/>
+    <ellipse cx="196" cy="90" rx="180" ry="30" 
+             fill="#4CAF50" 
+             stroke="#2E7D32" 
+             stroke-width="4"/>
+    
+    <!-- 第二层 -->
+    <ellipse cx="196" cy="120" rx="180" ry="30" 
+             fill="#66BB6A" 
+             stroke="#2E7D32" 
+             stroke-width="4"/>
+    <rect x="16" y="120" width="360" height="60" fill="#66BB6A"/>
+    <ellipse cx="196" cy="180" rx="180" ry="30" 
+             fill="#66BB6A" 
+             stroke="#2E7D32" 
+             stroke-width="4"/>
+  </g>
+  
+  <!-- 锁图标 (蓝色) -->
+  <g transform="translate(180, 80)">
+    <!-- 锁环 -->
+    <path d="M 50 120 
+             C 50 80, 50 40, 100 40
+             C 150 40, 150 80, 150 120" 
+          fill="none" 
+          stroke="#1976D2" 
+          stroke-width="16" 
+          stroke-linecap="round"/>
+    
+    <!-- 锁体 -->
+    <rect x="30" y="120" width="140" height="120" rx="20" ry="20" 
+          fill="#2196F3" 
+          stroke="#0D47A1" 
+          stroke-width="4"/>
+    
+    <!-- 锁孔 -->
+    <circle cx="100" cy="160" r="16" fill="#ffffff"/>
+    <rect x="92" y="160" width="16" height="40" rx="8" ry="8" fill="#ffffff"/>
+    
+    <!-- 锁体高光 -->
+    <rect x="40" y="130" width="120" height="20" rx="10" ry="10" 
+          fill="#ffffff" 
+          opacity="0.4"/>
+    
+    <!-- 锁体装饰螺丝 -->
+    <circle cx="50" cy="150" r="3" fill="#0D47A1"/>
+    <circle cx="150" cy="150" r="3" fill="#0D47A1"/>
+    <circle cx="50" cy="210" r="3" fill="#0D47A1"/>
+    <circle cx="150" cy="210" r="3" fill="#0D47A1"/>
+  </g>
+  
+  <!-- 安全徽章 -->
+  <g transform="translate(380, 80)">
+    <circle cx="0" cy="0" r="30" fill="#FF9800" stroke="#E65100" stroke-width="3"/>
+    <path d="M -12 -5 L -5 5 L 12 -12" 
+          stroke="#ffffff" 
+          stroke-width="4" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" 
+          fill="none"/>
+  </g>
+  
+  <!-- 装饰点 -->
+  <circle cx="80" cy="80" r="15" fill="#E91E63"/>
+  <circle cx="430" cy="430" r="20" fill="#9C27B0"/>
+</svg>
