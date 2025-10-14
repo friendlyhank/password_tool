@@ -339,9 +339,9 @@ func (a *App) showMainWindow() {
 
 			// 获取右侧的按钮容器
 			buttonContainer := borderContainer.Objects[1].(*fyne.Container)
-			editBtn := buttonContainer.Objects[0].(*widget.Button)
-			deleteBtn := buttonContainer.Objects[1].(*widget.Button)
-			copyBtn := buttonContainer.Objects[2].(*widget.Button)
+			copyBtn := buttonContainer.Objects[0].(*widget.Button)   // 第一个是复制按钮
+			editBtn := buttonContainer.Objects[1].(*widget.Button)   // 第二个是编辑按钮
+			deleteBtn := buttonContainer.Objects[2].(*widget.Button) // 第三个是删除按钮
 
 			// 设置编辑按钮功能
 			editBtn.OnTapped = func() {

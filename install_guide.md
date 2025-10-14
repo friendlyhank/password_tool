@@ -12,13 +12,25 @@
 
 ## 🚀 安装和使用
 
-### 方法一：直接运行
+### 方法一：使用自动化构建脚本（推荐）
+```bash
+# 运行自动化构建和安装脚本
+./build_and_install.sh
+```
+**优势**：
+- 🚀 一键完成：编译 → 打包 → 安装
+- 🔍 自动检查：构建环境和依赖
+- 🧹 自动清理：旧的构建文件
+- 📊 详细反馈：每步操作的状态信息
+- 🛡️ 权限处理：自动处理安装权限
+
+### 方法二：直接运行
 ```bash
 # 在当前目录直接打开应用
 open password_tool.app
 ```
 
-### 方法二：安装到应用程序文件夹
+### 方法三：手动安装到应用程序文件夹
 ```bash
 # 复制到应用程序文件夹
 cp -R password_tool.app /Applications/
@@ -27,7 +39,7 @@ cp -R password_tool.app /Applications/
 open /Applications/password_tool.app
 ```
 
-### 方法三：拖拽安装
+### 方法四：拖拽安装
 1. 在 Finder 中打开项目文件夹
 2. 将 `password_tool.app` 拖拽到 `/Applications` 文件夹
 3. 从启动台或应用程序文件夹启动应用
@@ -66,7 +78,19 @@ open /Applications/password_tool.app
 
 ## 🔄 更新应用
 
-如需更新应用：
+### 使用自动化脚本更新（推荐）
+```bash
+# 运行构建脚本，自动更新到最新版本
+./build_and_install.sh
+```
+脚本会自动：
+- 清理旧的构建文件
+- 重新编译和打包
+- 替换系统中的旧版本
+- 保留用户数据
+
+### 手动更新
+如需手动更新应用：
 1. 重新运行打包命令
 2. 替换 `/Applications` 中的旧版本
 3. 数据会自动保留

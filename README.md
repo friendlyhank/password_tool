@@ -90,8 +90,12 @@ go install fyne.io/tools/cmd/fyne@latest
 # 打包应用（需要图标文件）
 fyne package -os darwin -icon icon.png
 
-# 安装打包后的应用
+# 安装打包后的应用到系统应用程序文件夹
 cp -R password_tool.app /Applications/
+
+# 方法3: 使用自动化构建脚本（推荐）
+# 运行构建脚本，自动完成打包和安装
+./build_and_install.sh
 ```
 
 ### 首次使用
@@ -150,7 +154,17 @@ cp -R password_tool.app /Applications/
 
 ## 🛠️ 便捷脚本
 
-项目提供了两个便捷脚本来简化应用管理：
+项目提供了多个便捷脚本来简化应用管理：
+
+### `build_and_install.sh` - 自动构建和安装（推荐）
+```bash
+./build_and_install.sh
+```
+- 自动编译应用程序
+- 自动打包成 macOS 应用
+- 自动安装到系统应用程序文件夹 (`/Applications/`)
+- 显示详细的构建和安装状态信息
+- **一键完成**: 从源码到可用应用的完整流程
 
 ### `run.sh` - 快速启动
 ```bash
