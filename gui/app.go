@@ -77,6 +77,62 @@ func (a *App) Run() {
 	a.window.ShowAndRun()
 }
 
+// createHeaderRow 创建列表标题行
+func (a *App) createHeaderRow() *fyne.Container {
+	// 创建标题标签，设置与列表项相同的宽度和样式
+	titleLabel := widget.NewLabel("标题")
+	titleLabel.Resize(fyne.NewSize(150, 30))
+	titleLabel.TextStyle = fyne.TextStyle{Bold: true}
+	titleLabel.Alignment = fyne.TextAlignLeading
+
+	// 创建用户名标签
+	usernameLabel := widget.NewLabel("用户名")
+	usernameLabel.Resize(fyne.NewSize(100, 30))
+	usernameLabel.TextStyle = fyne.TextStyle{Bold: true}
+	usernameLabel.Alignment = fyne.TextAlignLeading
+
+	// 创建网址标签容器，与列表项的URL容器保持一致
+	urlContainer := container.NewWithoutLayout()
+	urlContainer.Resize(fyne.NewSize(280, 30))
+	urlLabel := widget.NewLabel("网址")
+	urlLabel.Resize(fyne.NewSize(280, 30))
+	urlLabel.Move(fyne.NewPos(0, 0))
+	urlLabel.TextStyle = fyne.TextStyle{Bold: true}
+	urlLabel.Alignment = fyne.TextAlignLeading
+	urlContainer.Add(urlLabel)
+
+	// 创建操作标题标签，替代具体的按钮
+	operationLabel := widget.NewLabel("操作")
+	operationLabel.Resize(fyne.NewSize(180, 30)) // 与按钮容器总宽度一致 (60*3)
+	operationLabel.TextStyle = fyne.TextStyle{Bold: true}
+	operationLabel.Alignment = fyne.TextAlignCenter
+
+	// 创建信息容器，与列表项布局保持一致
+	infoContainer := container.NewHBox(
+		titleLabel,
+		usernameLabel,
+		urlContainer,
+	)
+
+	// 使用与列表项相同的边框布局
+	headerRow := container.NewBorder(
+		nil,            // 顶部
+		nil,            // 底部
+		nil,            // 左侧
+		operationLabel, // 右侧：操作标题
+		infoContainer,  // 中心：信息标签
+	)
+
+	// 创建带分隔符的标题行容器来突出显示
+	headerContainer := container.NewVBox(
+		widget.NewSeparator(),
+		headerRow,
+		widget.NewSeparator(),
+	)
+	
+	return headerContainer
+}
+
 // showSetMasterPasswordDialog 显示设置主密码对话框
 func (a *App) showSetMasterPasswordDialog() {
 	passwordEntry := widget.NewPasswordEntry()
@@ -406,10 +462,14 @@ func (a *App) showMainWindow() {
 		a.filterEntries(text)
 	}
 
+	// 创建列表标题行
+	headerContainer := a.createHeaderRow()
+
 	// 创建顶部容器，增加间距
 	topContainer := container.NewVBox(
 		container.NewPadded(toolbar),
 		container.NewPadded(searchEntry),
+		headerContainer, // 添加标题行
 	)
 
 	// 布局
