@@ -16,17 +16,21 @@ import (
 	"hank.com/password_tool/models"
 )
 
+// 默认分类列表，可以方便地进行调整
+var DefaultCategories = []string{"sky", "co", "meet", "own"}
+
 type App struct {
-	fyneApp      fyne.App
-	window       fyne.Window
-	db           *database.DB
-	entryList    *widget.List
-	entries      []*models.PasswordEntry
-	categories   []*models.Category
-	lockTimer    *time.Timer
-	isLocked     bool
-	lastActivity time.Time
-	openDialogs  []*dialog.CustomDialog // 跟踪打开的对话框
+	fyneApp        fyne.App
+	window         fyne.Window
+	db             *database.DB
+	entryList      *widget.List
+	entries        []*models.PasswordEntry
+	categories     []*models.Category
+	lockTimer      *time.Timer
+	isLocked       bool
+	lastActivity   time.Time
+	openDialogs    []*dialog.CustomDialog // 跟踪打开的对话框
+	categoryFilter *widget.Select         // 分类筛选下拉框
 }
 
 // NewApp 创建新的应用实例
@@ -462,13 +466,27 @@ func (a *App) showMainWindow() {
 		a.filterEntries(text)
 	}
 
+	// 创建分类筛选下拉框
+	categoryOptions := append([]string{"全部分类"}, DefaultCategories...)
+	a.categoryFilter = widget.NewSelect(categoryOptions, func(selected string) {
+		a.filterByCategory(selected)
+	})
+	a.categoryFilter.SetSelected("全部分类")
+	a.categoryFilter.Resize(fyne.NewSize(150, 35))
+
+	// 创建搜索和筛选容器
+	searchFilterContainer := container.NewBorder(
+		nil, nil, a.categoryFilter, nil, // 左侧放置分类筛选
+		searchEntry, // 中心放置搜索框
+	)
+
 	// 创建列表标题行
 	headerContainer := a.createHeaderRow()
 
 	// 创建顶部容器，增加间距
 	topContainer := container.NewVBox(
 		container.NewPadded(toolbar),
-		container.NewPadded(searchEntry),
+		container.NewPadded(searchFilterContainer),
 		headerContainer, // 添加标题行
 	)
 
@@ -599,6 +617,29 @@ func (a *App) loadEntries() {
 }
 
 // filterEntries 过滤密码条目
+// filterByCategory 根据分类筛选密码条目
+func (a *App) filterByCategory(category string) {
+	allEntries, err := a.db.GetPasswordEntries()
+	if err != nil {
+		dialog.ShowError(err, a.window)
+		return
+	}
+
+	if category == "全部分类" {
+		a.entries = allEntries
+	} else {
+		var filtered []*models.PasswordEntry
+		for _, entry := range allEntries {
+			if entry.Category == category {
+				filtered = append(filtered, entry)
+			}
+		}
+		a.entries = filtered
+	}
+
+	a.entryList.Refresh()
+}
+
 func (a *App) filterEntries(searchText string) {
 	if searchText == "" {
 		a.loadEntries()
@@ -653,8 +694,9 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 	urlEntry := widget.NewEntry()
 	urlEntry.Resize(fyne.NewSize(350, 35))
 
-	categoryEntry := widget.NewEntry()
-	categoryEntry.Resize(fyne.NewSize(350, 35))
+	// 创建分类下拉选择框，使用全局默认分类
+	categorySelect := widget.NewSelect(DefaultCategories, nil)
+	categorySelect.Resize(fyne.NewSize(350, 35))
 
 	notesEntry := widget.NewMultiLineEntry()
 	notesEntry.Resize(fyne.NewSize(350, 80))
@@ -666,7 +708,7 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 		passwordEntry.SetText(entry.Password)
 		urlEntry.SetText(entry.URL)
 		notesEntry.SetText(entry.Notes)
-		categoryEntry.SetText(entry.Category)
+		categorySelect.SetSelected(entry.Category)
 	}
 
 	// 创建标签，设置固定宽度以确保对齐
@@ -683,7 +725,7 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 		usernameLabel, usernameEntry,
 		passwordLabel, passwordEntry,
 		urlLabel, urlEntry,
-		categoryLabel, categoryEntry,
+		categoryLabel, categorySelect,
 		notesLabel, notesEntry,
 	)
 
@@ -714,7 +756,7 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 			Password: passwordEntry.Text,
 			URL:      urlEntry.Text,
 			Notes:    notesEntry.Text,
-			Category: categoryEntry.Text,
+			Category: categorySelect.Selected,
 		}
 
 		var err error
@@ -780,7 +822,7 @@ func (a *App) showEntryDialog(entry *models.PasswordEntry) {
 			Password: passwordEntry.Text,
 			URL:      urlEntry.Text,
 			Notes:    notesEntry.Text,
-			Category: categoryEntry.Text,
+			Category: categorySelect.Selected,
 		}
 
 		var err error
