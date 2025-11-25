@@ -17,7 +17,7 @@ import (
 )
 
 // 默认分类列表，可以方便地进行调整
-var DefaultCategories = []string{"sky", "co", "meet", "own"}
+var DefaultCategories = []string{"sky", "co", "meet", "own", "个人", "玄熠"}
 
 type App struct {
 	fyneApp        fyne.App
