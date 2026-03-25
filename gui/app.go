@@ -955,7 +955,7 @@ func (a *App) showEntryDetails(entry *models.PasswordEntry) {
 	detailsDialog.Show()
 }
 
-// createURLWidget 创建可点击的URL组件
+// createURLWidget 创建可点击和选择复制的URL组件
 func (a *App) createURLWidget(urlStr string) fyne.CanvasObject {
 	if urlStr == "" {
 		return widget.NewLabel("无")
@@ -963,19 +963,20 @@ func (a *App) createURLWidget(urlStr string) fyne.CanvasObject {
 
 	// 验证URL格式
 	parsedURL, err := url.Parse(urlStr)
-	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
-		// 如果不是有效的HTTP/HTTPS URL，显示为普通文本，不换行
-		label := widget.NewLabel(urlStr)
-		label.Wrapping = fyne.TextWrapOff // 关闭换行
-		return label
+	isValidURL := err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https")
+
+	if isValidURL {
+		// 对于有效的HTTP/HTTPS URL，使用超链接
+		hyperlink := widget.NewHyperlink(urlStr, parsedURL)
+		hyperlink.Wrapping = fyne.TextWrapOff
+		hyperlink.Truncation = fyne.TextTruncateOff
+		return hyperlink
 	}
 
-	// 创建可点击的超链接，确保URL能在浏览器中打开
-	hyperlink := widget.NewHyperlink(urlStr, parsedURL)
-	// 设置超链接样式，关闭换行，横向显示
-	hyperlink.Wrapping = fyne.TextWrapOff       // 关闭换行
-	hyperlink.Truncation = fyne.TextTruncateOff // 关闭截断，显示完整URL
-	return hyperlink
+	// 对于非HTTP/HTTPS的URL（如IP地址等），使用普通Label
+	label := widget.NewLabel(urlStr)
+	label.Wrapping = fyne.TextWrapOff
+	return label
 }
 
 // showCustomConfirmDialog 显示自定义确认对话框，"是"在左边，"否"在右边
